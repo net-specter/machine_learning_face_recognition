@@ -1,6 +1,0 @@
-database/
-.vercel
-__pycache__/
-.env
-.venv/
-app/__pycache__/
