@@ -1,0 +1,82 @@
+services:
+  # ----------------------------------------------
+  # 1. POSTGRESQL DATABASE SERVICE
+  # ----------------------------------------------
+  db:
+    image: postgres:14
+    container_name: face_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "#vichet02"
+      POSTGRES_DB: face_recognition_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------
+  # 2. ML PROCESSING SERVICE (FastAPI)
+  # ----------------------------------------------
+  ml-processor:
+    build:
+      context: ./backend/fastapi_service
+      dockerfile: Dockerfile
+    container_name: fastapi-ml
+    restart: always
+    environment:
+      PORT: 5000
+      PG_HOST: db 
+      PG_DATABASE: face_recognition_db
+      PG_PASSWORD: "#vichet02"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ----------------------------------------------
+  # 3. API GATEWAY SERVICE (Express.js)
+  # ----------------------------------------------
+  api-gateway:
+    build:
+      context: ./backend/express_service
+      dockerfile: Dockerfile
+    container_name: express-gateway
+    restart: always
+    environment:
+      PORT: 3001
+      ML_SERVICE_URL: http://ml-processor:5000/api/v1/ml
+      PG_HOST: db 
+      PG_DATABASE: face_recognition_db
+      PG_PASSWORD: "#vichet02"
+    ports:
+      - "3001:3001"
+    depends_on:
+      ml-processor:
+        condition: service_started
+      db:
+        condition: service_healthy
+        
+  # ----------------------------------------------
+  # 4. FRONTEND SERVICE (Next.js)
+  # ----------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nextjs-frontend
+    restart: always
+    environment:
+      PORT: 3002 # Changed to avoid conflict
+      NEXT_PUBLIC_API_URL: http://api-gateway:3001/api/v1 
+    ports:
+      - "3002:3002" # Map host port 3002 to container 3002
+    depends_on:
+      - api-gateway
+
+volumes:
+  pgdata:

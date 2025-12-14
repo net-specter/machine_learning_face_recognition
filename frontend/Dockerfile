@@ -1,30 +1,38 @@
-# Stage 1: Base setup
-FROM node:20-alpine AS base
-WORKDIR /frontend
-COPY package.json package-lock.json ./
-RUN npm install --frozen-lockfile
+# =========================
+# BUILD STAGE
+# =========================
+FROM node:20 AS builder
 
-# Stage 2: Builder stage
-FROM base AS builder
-WORKDIR /frontend
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy dependency files
+COPY package.json package-lock.json ./
+
+# ✅ Install ALL deps (including devDependencies)
+RUN npm install
+
+# Copy source code
 COPY . .
+
+# Build Next.js
 RUN npm run build
 
-# Stage 3: Runner stage (Production environment)
-FROM base AS runner
-WORKDIR /frontend
-ENV NODE_ENV production
 
-# Copy artifacts from the builder stage
-COPY --from=builder /frontend/.next ./.next
-COPY --from=builder /frontend/public ./public
-COPY --from=builder /frontend/package.json ./package.json
+# =========================
+# RUN STAGE
+# =========================
+FROM node:20 AS runner
 
-# Next.js standalone output mode (recommended)
-# For this to work, ensure 'output: "standalone"' is set in your next.config.js file
-COPY --from=builder /frontend/standalone ./
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy only what is needed to run
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
-
-# Start the frontendlication
 CMD ["npm", "start"]
