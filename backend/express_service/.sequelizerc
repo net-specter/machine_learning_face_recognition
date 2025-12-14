@@ -1,0 +1,15 @@
+const path = require("path");
+
+module.exports = {
+  // Point to your config file (usually stays in root/config)
+  config: path.resolve("src", "config", "config.js"),
+
+  // Point to src/models
+  "models-path": path.resolve("src", "models"),
+
+  // Point to src/seeders
+  "seeders-path": path.resolve("src", "seeders"),
+
+  // Point to src/migrations  <-- This is what you wanted
+  "migrations-path": path.resolve("src", "migrations"),
+};
