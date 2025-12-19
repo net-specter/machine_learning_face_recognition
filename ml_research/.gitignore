@@ -1,0 +1,10 @@
+# Ignore datasets
+datasets/
+__pycache__/
+*.ipynb_checkpoints/
+
+# Ignore large model files (optional, if they are >100MB)
+*.h5
+*.pt
+
+.venv/

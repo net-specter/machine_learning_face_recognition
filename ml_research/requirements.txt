@@ -1,0 +1,58 @@
+# ==========================================================
+# CORE FRAMEWORK & SERVER (FastAPI, Uvicorn)
+# ==========================================================
+fastapi==0.123.0
+starlette==0.41.2
+uvicorn==0.29.0
+pydantic==2.8.2
+typing-extensions==4.12.2
+
+# --- I/O & Config ---
+python-dotenv==1.0.1
+python-multipart==0.0.9
+joblib==1.3.2
+tqdm==4.67.1
+seaborn==0.13.2 # Added for evaluation visuals
+matplotlib==3.7.5 # Needed by Seaborn and analysis
+
+# ==========================================================
+# SCIENTIFIC & COMPUTER VISION (Anchor on NumPy 1.25.x)
+# ==========================================================
+# --- CORE MATH ---
+numpy==1.25.2   
+scipy==1.11.4
+scikit-learn==1.3.2
+threadpoolctl==3.5.0
+
+# --- Computer Vision ---
+opencv-contrib-python==4.9.0.80   
+mediapipe==0.10.13                
+pillow==10.4.0
+
+# --- Deep Learning Feature Extractor ---
+deepface==0.0.96
+tensorflow==2.15.0 
+
+# --- Data Handling & Security ---
+pandas==1.5.3 
+cryptography==42.0.8
+PyJWT==2.8.0
+
+# --- Build Tools (Keep for Docker Alpine compilation) ---
+setuptools==65.5.0
+wheel
+
+# ==========================================================
+# QUANTUM MACHINE LEARNING (QML) DEPENDENCIES
+# ==========================================================
+# We must use older, stable versions of Qiskit/PennyLane known to support
+# Python 3.10 and NumPy 1.x.
+
+# --- PennyLane Ecosystem (VQC Training) ---
+pennylane==0.35.1 
+autoray==0.8.0 
+
+# --- Qiskit Ecosystem (Circuits and Utilities) ---
+qiskit==0.44.3 # Stable 0.x version
+qiskit-aer==0.12.2 # Aer simulator
+qiskit-terra==0.25.3 # Qiskit core (needed by qiskit 0.x)
