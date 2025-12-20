@@ -10,162 +10,119 @@ from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import LabelEncoder
 
 # =========================================================
-# 1. CONFIGURATION
+# 1. CONFIGURATION (RTX 4060 OPTIMIZED)
 # =========================================================
 OUTPUT_PATH = "../../saved_models"
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Quantum Params (MUST match preprocessing)
 N_QUBITS = 8
-N_LAYERS = 3                 # 2 is shallow → 3 learns better
-LR = 0.005                   # Safer for quantum gradients
-EPOCHS = 60
-BATCH_SIZE = 32
-PATIENCE = 12
-
-torch.manual_seed(1)
-np.random.seed(1)
+N_LAYERS = 4                 
+LR = 0.005                   
+EPOCHS = 50
+BATCH_SIZE = 16              
+PATIENCE = 8
 
 # =========================================================
-# 2. QUANTUM CIRCUIT
+# 2. QUANTUM CIRCUIT (Fixed Slicing for Batches)
 # =========================================================
-try:
-    dev = qml.device("lightning.qubit", wires=N_QUBITS)
-except Exception:
-    dev = qml.device("default.qubit", wires=N_QUBITS)
+dev = qml.device("lightning.qubit", wires=N_QUBITS)
 
-@qml.qnode(dev, interface="torch", diff_method="parameter-shift")
-def quantum_net(inputs, weights):
-    # Stable embedding for quantum models
-    qml.AngleEmbedding(inputs, wires=range(N_QUBITS), rotation="Y")
+@qml.qnode(dev, interface="torch", diff_method="adjoint")
+def paper_quantum_net(inputs, weights):
+    """
+    Nature Paper Dual-Stream Logic:
+    inputs[:, 0:4] -> Global Features (PCA)
+    inputs[:, 4:8] -> Local Features (ICA)
+    """
+    for i in range(N_LAYERS):
+        # 🔥 FIX: Use [:, :4] to slice the feature dimension, not the batch dimension
+        # Qubits 0-3: Global Stream
+        qml.AngleEmbedding(inputs[:, :4], wires=range(0, 4), rotation="Y")
+        # Qubits 4-7: Local Stream
+        qml.AngleEmbedding(inputs[:, 4:], wires=range(4, 8), rotation="X")
 
-    # Trainable entangling layers
-    qml.StronglyEntanglingLayers(weights, wires=range(N_QUBITS))
+        # Quantum Matching (Entanglement between streams)
+        qml.StronglyEntanglingLayers(weights[i:i+1], wires=range(N_QUBITS))
 
     return [qml.expval(qml.PauliZ(i)) for i in range(N_QUBITS)]
 
 # =========================================================
 # 3. HYBRID MODEL
 # =========================================================
-class HybridFaceClassifier(nn.Module):
+class PaperHybridClassifier(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-
+        
+        # Define the shapes of the weights for the TorchLayer
         q_weight_shapes = {"weights": (N_LAYERS, N_QUBITS, 3)}
-        self.quantum = qml.qnn.TorchLayer(quantum_net, q_weight_shapes)
-
-        # Normalize quantum outputs (VERY important)
-        self.q_norm = nn.LayerNorm(N_QUBITS)
+        
+        # TorchLayer automatically handles batching if the QNode is written correctly
+        self.quantum = qml.qnn.TorchLayer(paper_quantum_net, q_weight_shapes)
 
         self.classifier = nn.Sequential(
-            nn.Linear(N_QUBITS, 128),
-            nn.BatchNorm1d(128),
-            nn.LeakyReLU(0.1),
-            nn.Dropout(0.2),
-
-            nn.Linear(128, 64),
+            nn.Linear(N_QUBITS, 64),
             nn.BatchNorm1d(64),
-            nn.LeakyReLU(0.1),
-            nn.Dropout(0.2),
-
+            nn.ReLU(),
+            nn.Dropout(0.3),
             nn.Linear(64, num_classes)
         )
+
     def forward(self, x):
+        # Quantum output is shape (Batch, N_QUBITS)
         x = self.quantum(x)
-        x = self.q_norm(x)
         return self.classifier(x)
 
 # =========================================================
-# 4. TRAINING FUNCTION
+# 4. TRAINING PIPELINE
 # =========================================================
 def train():
-    print(f"🚀 Initializing Hybrid Quantum Training on {DEVICE}...")
+    print(f"🚀 Initializing Paper-Protocol Quantum Training on {DEVICE}")
 
-    # ---- Load Data ----
-    try:
-        X_train = joblib.load(f"{OUTPUT_PATH}/X_train_Q.pkl")
-        y_train_raw = joblib.load(f"{OUTPUT_PATH}/Y_train_Q.pkl")
-        X_val = joblib.load(f"{OUTPUT_PATH}/X_val_Q.pkl")
-        y_val_raw = joblib.load(f"{OUTPUT_PATH}/Y_val_Q.pkl")
-    except Exception as e:
-        print("❌ Dataset not found. Run preprocessing first.")
-        raise e
+    # Load Data
+    X_train = joblib.load(f"{OUTPUT_PATH}/X_train_Q.pkl")
+    y_train_raw = joblib.load(f"{OUTPUT_PATH}/Y_train_Q.pkl")
+    X_val = joblib.load(f"{OUTPUT_PATH}/X_val_Q.pkl")
+    y_val_raw = joblib.load(f"{OUTPUT_PATH}/Y_val_Q.pkl")
 
-    # ---- Encode Labels ----
     le = LabelEncoder()
-    y_train_np = le.fit_transform(y_train_raw)
-    y_val_np = le.transform(y_val_raw)
-
-    y_train = torch.tensor(y_train_np, dtype=torch.long)
-    y_val = torch.tensor(y_val_np, dtype=torch.long)
-
+    y_train = torch.tensor(le.fit_transform(y_train_raw), dtype=torch.long)
+    y_val = torch.tensor(le.transform(y_val_raw), dtype=torch.long)
     num_classes = len(le.classes_)
 
-    # ---- Class Weights (FIXED) ----
-    counts = np.bincount(y_train_np)
-    weights = counts.sum() / (counts + 1e-8)
-    class_weights = torch.tensor(weights, dtype=torch.float)
-
-    # ---- Datasets ----
-    train_ds = TensorDataset(torch.tensor(X_train, dtype=torch.float32), y_train)
-    val_ds = TensorDataset(torch.tensor(X_val, dtype=torch.float32), y_val)
-
     train_loader = DataLoader(
-        train_ds, batch_size=BATCH_SIZE, shuffle=True, drop_last=True
+        TensorDataset(torch.tensor(X_train, dtype=torch.float32), y_train), 
+        batch_size=BATCH_SIZE, shuffle=True, drop_last=True
     )
-    val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE)
-
-    # ---- Model ----
-    model = HybridFaceClassifier(num_classes).to(DEVICE)
-
-    optimizer = optim.AdamW(
-        model.parameters(),
-        lr=LR,
-        weight_decay=0.05
+    val_loader = DataLoader(
+        TensorDataset(torch.tensor(X_val, dtype=torch.float32), y_val), 
+        batch_size=BATCH_SIZE
     )
 
-    criterion = nn.CrossEntropyLoss(
-        weight=class_weights,
-        label_smoothing=0.5
-    )
-
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode="max",
-        patience=3,
-        factor=0.5,
-        verbose=True
-    )
+    model = PaperHybridClassifier(num_classes).to(DEVICE)
+    optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=0.01)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
     best_acc = 0.0
-    early_stop = 0
+    early_stop_counter = 0
 
-    # =====================================================
-    # TRAINING LOOP
-    # =====================================================
     for epoch in range(EPOCHS):
         model.train()
-        running_loss = 0.0
-
-        for bx, by in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
+        train_loss = 0.0
+        
+        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False)
+        for bx, by in pbar:
             bx, by = bx.to(DEVICE), by.to(DEVICE)
-
             optimizer.zero_grad()
             outputs = model(bx)
             loss = criterion(outputs, by)
             loss.backward()
-
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0)
             optimizer.step()
+            train_loss += loss.item()
 
-            running_loss += loss.item()
-
-        avg_loss = running_loss / len(train_loader)
-
-        # ---- Validation ----
+        # Validation
         model.eval()
         correct, total = 0, 0
-
         with torch.no_grad():
             for bx, by in val_loader:
                 bx, by = bx.to(DEVICE), by.to(DEVICE)
@@ -174,37 +131,25 @@ def train():
                 total += by.size(0)
 
         val_acc = 100.0 * correct / total
+        print(f"Epoch {epoch+1:02d} | Loss: {train_loss/len(train_loader):.4f} | Val Acc: {val_acc:.2f}%")
 
-        print(
-            f"Epoch {epoch+1:03d} | "
-            f"Loss: {avg_loss:.4f} | "
-            f"Val Acc: {val_acc:.2f}% | "
-            f"LR: {optimizer.param_groups[0]['lr']:.5f}"
-        )
+        scheduler.step()
 
-        scheduler.step(val_acc)
-
-        # ---- Early Stopping ----
         if val_acc > best_acc:
             best_acc = val_acc
-            early_stop = 0
-
-            torch.save(
-                model.state_dict(),
-                f"{OUTPUT_PATH}/quantum_face_model.pth"
-            )
-            joblib.dump(
-                le,
-                f"{OUTPUT_PATH}/label_encoder_Q.pkl"
-            )
+            early_stop_counter = 0
+            torch.save(model.state_dict(), f"{OUTPUT_PATH}/hybrid_qml_model.pth")
+            joblib.dump(le, f"{OUTPUT_PATH}/label_encoder.pkl")
+            joblib.dump({'best_acc': best_acc}, f"{OUTPUT_PATH}/metrics.pkl")
         else:
-            early_stop += 1
-            if early_stop >= PATIENCE:
-                print(f"🛑 Early stopping. Best Val Acc: {best_acc:.2f}%")
+            early_stop_counter += 1
+            if early_stop_counter >= PATIENCE:
+                print(f"🛑 Early stopping at best accuracy: {best_acc:.2f}%")
                 break
 
-    print("✅ Training complete.")
+    print("✅ Paper-style training complete.")
 
-# =========================================================
 if __name__ == "__main__":
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     train()
