@@ -16,7 +16,7 @@ OUTPUT_PATH = "../../saved_models"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 N_QUBITS = 8
-N_LAYERS = 6
+N_LAYERS = 3
 
 # Quantum device setup
 dev = qml.device("lightning.qubit", wires=N_QUBITS)

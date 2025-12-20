@@ -21,10 +21,11 @@ IMG_SIZE = (224, 224)
 MAX_SAMPLES_PER_PERSON = 120
 MODEL_NAME = "Facenet512"
 N_QUBITS = 8
-SEED = 42
+SEED = 1
 
 random.seed(SEED)
 np.random.seed(SEED)
+
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
 LABELS_TO_NAMES = {}
@@ -39,11 +40,9 @@ def is_good_face(face):
 
     gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
 
-    # Blur check
     if cv2.Laplacian(gray, cv2.CV_64F).var() < 80:
         return False
 
-    # Contrast check
     if gray.std() < 20:
         return False
 
@@ -60,11 +59,10 @@ def align_face(face, landmarks):
     dx = right_eye[0] - left_eye[0]
     angle = np.degrees(np.arctan2(dy, dx))
 
-    cx = (left_eye[0] + right_eye[0]) / 2.0
-    cy = (left_eye[1] + right_eye[1]) / 2.0
-    center = (float(cx), float(cy))
+    cx = (left_eye[0] + right_eye[0]) / 2
+    cy = (left_eye[1] + right_eye[1]) / 2
 
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    M = cv2.getRotationMatrix2D((cx, cy), angle, 1.0)
 
     return cv2.warpAffine(
         face,
@@ -75,19 +73,19 @@ def align_face(face, landmarks):
     )
 
 # =====================================================
-# SAFE AUGMENTATION
+# ROTATION-ONLY AUGMENTATION
 # =====================================================
-def augment_face(face):
-    img = face.copy()
-
-    if random.random() < 0.3:
-        img = cv2.flip(img, 1)
-
-    if random.random() < 0.3:
-        alpha = random.uniform(0.9, 1.1)
-        img = np.clip(img * alpha, 0, 255).astype(np.uint8)
-
-    return img
+def rotate_face(face, max_angle=10):
+    angle = random.uniform(-max_angle, max_angle)
+    h, w = face.shape[:2]
+    M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
+    return cv2.warpAffine(
+        face,
+        M,
+        (w, h),
+        flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_REFLECT
+    )
 
 # =====================================================
 # MAIN PIPELINE
@@ -107,7 +105,7 @@ def prepare_quantum_data():
 
         persons = sorted(os.listdir(DATASET_PATH))
         if not persons:
-            print("❌ Dataset folder is empty")
+            print("❌ Dataset is empty")
             return
 
         for person in persons:
@@ -115,8 +113,8 @@ def prepare_quantum_data():
             if not os.path.isdir(person_path):
                 continue
 
+            print(f"\n📁 Processing: {person}")
             LABELS_TO_NAMES[label_id] = person
-            print(f"\n📁 Processing {person}")
 
             embeddings_buffer = []
             count = 0
@@ -134,7 +132,6 @@ def prepare_quantum_data():
 
                 rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 det = face_detector.process(rgb)
-
                 if not det.detections:
                     continue
 
@@ -186,11 +183,12 @@ def prepare_quantum_data():
                     embeddings_buffer = embeddings_buffer[-15:]
                     count += 1
 
-                    # Augmentation
+                    # 🔹 ROTATION AUGMENTATION ONLY
                     if count < MAX_SAMPLES_PER_PERSON and random.random() < 0.4:
-                        aug = augment_face(face)
+                        rotated = rotate_face(face)
+
                         rep2 = DeepFace.represent(
-                            img_path=cv2.cvtColor(aug, cv2.COLOR_BGR2RGB),
+                            img_path=cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB),
                             model_name=MODEL_NAME,
                             enforce_detection=False,
                             detector_backend="skip"
@@ -198,6 +196,7 @@ def prepare_quantum_data():
 
                         emb2 = np.asarray(rep2[0]["embedding"], dtype=np.float32)
                         sims = cosine_similarity([emb2], embeddings_buffer)[0]
+
                         if np.max(sims) < 0.985:
                             X.append(emb2)
                             y.append(label_id)
@@ -210,19 +209,11 @@ def prepare_quantum_data():
             label_id += 1
 
     # =====================================================
-    # DATA ANALYSIS
+    # DATA SPLIT
     # =====================================================
     X = np.asarray(X)
     y = np.asarray(y)
 
-    unique, counts = np.unique(y, return_counts=True)
-    print("\n📊 Samples per class:")
-    for u, c in zip(unique, counts):
-        print(f"{LABELS_TO_NAMES[u]}: {c}")
-
-    # =====================================================
-    # TRAIN / VAL / TEST SPLIT
-    # =====================================================
     X_train, X_tmp, y_train, y_tmp = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=SEED
     )
@@ -232,7 +223,7 @@ def prepare_quantum_data():
     )
 
     # =====================================================
-    # SCALING + PCA (QUANTUM READY)
+    # SCALING + PCA → QUANTUM
     # =====================================================
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
@@ -243,9 +234,6 @@ def prepare_quantum_data():
     X_train = pca.fit_transform(X_train)
     X_val = pca.transform(X_val)
     X_test = pca.transform(X_test)
-
-    print("\n🧠 PCA explained variance:",
-          np.sum(pca.explained_variance_ratio_))
 
     X_train = np.tanh(X_train) * np.pi
     X_val = np.tanh(X_val) * np.pi
@@ -263,15 +251,10 @@ def prepare_quantum_data():
 
     joblib.dump(scaler, f"{OUTPUT_PATH}/scaler_Q.pkl")
     joblib.dump(pca, f"{OUTPUT_PATH}/pca_Q.pkl")
-    joblib.dump(pca.explained_variance_ratio_,
-                f"{OUTPUT_PATH}/pca_variance.pkl")
-    joblib.dump(LABELS_TO_NAMES,
-                f"{OUTPUT_PATH}/labels_to_names.pkl")
+    joblib.dump(LABELS_TO_NAMES, f"{OUTPUT_PATH}/labels_to_names.pkl")
 
-    print("\n✅ Dataset prepared successfully (Quantum-ready)")
+    print("\n✅ Dataset prepared (rotation-only)")
 
-# =====================================================
-# ENTRY POINT
 # =====================================================
 if __name__ == "__main__":
     prepare_quantum_data()

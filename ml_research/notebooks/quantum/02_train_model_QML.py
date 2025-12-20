@@ -17,14 +17,14 @@ DEVICE = torch.device("cpu")
 
 # Quantum Params (MUST match preprocessing)
 N_QUBITS = 8
-N_LAYERS = 6                 # 2 is shallow → 3 learns better
-LR = 0.002                   # Safer for quantum gradients
+N_LAYERS = 3                 # 2 is shallow → 3 learns better
+LR = 0.005                   # Safer for quantum gradients
 EPOCHS = 60
 BATCH_SIZE = 32
 PATIENCE = 12
 
-torch.manual_seed(42)
-np.random.seed(42)
+torch.manual_seed(1)
+np.random.seed(1)
 
 # =========================================================
 # 2. QUANTUM CIRCUIT
