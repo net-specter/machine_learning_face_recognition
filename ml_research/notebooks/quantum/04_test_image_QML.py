@@ -1,23 +1,49 @@
+import os
+import warnings
+import sys
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+warnings.filterwarnings("ignore")
+
+class DummyFile(object):
+    def write(self, x):
+        pass
+    def flush(self):
+        pass
+    def close(self):
+        pass
+
+
+sys.stdout = DummyFile()
+sys.stderr = DummyFile()
+
+from deepface import DeepFace
+
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
+
 import torch
 import torch.nn as nn
 import pennylane as qml
 import cv2
 import joblib
-import os
 import numpy as np
-import warnings
-from deepface import DeepFace # 🔥 Switch back to DeepFace for consistency
+
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # 1. SILENCE WARNINGS
 warnings.filterwarnings("ignore")
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # =========================================================
 # 2. CONFIGURATION
 # =========================================================
 IMAGE_PATH = "../../test_images/image.png" 
-OUTPUT_PATH = "../../saved_models"
+OUTPUT_PATH = "../../models/quantum"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 N_QUBITS = 8

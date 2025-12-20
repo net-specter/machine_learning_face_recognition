@@ -8,4 +8,4 @@ __pycache__/
 *.pt
 
 .venv/
-.quantum_env/
+quantum_env/
