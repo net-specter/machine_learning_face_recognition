@@ -1,0 +1,37 @@
+{
+  "name": "express_service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:reset": "node ./scripts/db-reset.js",
+    "db:reset:no-undo": "node ./scripts/db-reset.js --no-undo",
+    "db:reset:skip-seed": "node ./scripts/db-reset.js --skip-seed",
+    "migrate": "npx knex migrate:latest",
+    "db:migrate": "npx sequelize-cli db:migrate --migrations-path src/migrations --models-path src/models",
+    "db:seed": "npx sequelize-cli db:seed:all --seeders-path src/seeders --models-path src/models",
+    "db:migrate:undo": "npx sequelize-cli db:migrate:undo --migrations-path src/migrations --models-path src/models"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "knex": "^3.1.0",
+    "morgan": "^1.10.1",
+    "mysql2": "^3.16.0",
+    "pg": "^8.16.3",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "sequelize-cli": "^6.6.3"
+  }
+}

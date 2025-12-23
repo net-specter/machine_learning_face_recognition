@@ -1,9 +1,0 @@
-Collecting numpy
-  Using cached numpy-2.2.6-cp310-cp310-win_amd64.whl.metadata (60 kB)
-Collecting typing-extensions
-  Using cached typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
-Using cached numpy-2.2.6-cp310-cp310-win_amd64.whl (12.9 MB)
-Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)
-Installing collected packages: typing-extensions, numpy
-
-Successfully installed numpy-2.2.6 typing-extensions-4.15.0
