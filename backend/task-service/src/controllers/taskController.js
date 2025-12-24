@@ -2,9 +2,9 @@ const { Task, Comment } = require("../models");
 const axios = require("axios");
 
 const BOARD_SERVICE_URL =
-  process.env.BOARD_SERVICE_URL || "http://localhost:3001";
+  process.env.BOARD_SERVICE_URL || "http://localhost:3002";
 const AUTH_SERVICE_URL =
-  process.env.AUTH_SERVICE_URL || "http://localhost:3000";
+  process.env.AUTH_SERVICE_URL || "http://localhost:3001";
 
 // Helper: Validate board existence via Board-Service
 async function validateBoard(board_id, token) {
@@ -103,48 +103,49 @@ exports.assignUser = async (req, res) => {
 
 // PATCH /tasks/:id/move - Move task to another column (S2S board/column check)
 exports.moveTask = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { column_id, position_order } = req.body;
+  try {
+    const { id } = req.params;
+    const { column_id, position_order } = req.body;
 
-        const task = await Task.findByPk(id);
-        if (!task) return res.status(404).json({ message: "Task not found" });
+    const task = await Task.findByPk(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
-        // Optionally: Validate column_id via Board-Service if needed
+    // Optionally: Validate column_id via Board-Service if needed
 
-        task.column_id = column_id;
-        if (position_order !== undefined) task.position_order = position_order;
-        await task.save();
+    task.column_id = column_id;
+    if (position_order !== undefined) task.position_order = position_order;
+    await task.save();
 
-        res.json(task);
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 };
 
 // POST /tasks/:id/comments - Add a comment to a task
 exports.addComment = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { content } = req.body;
-        const user_id = req.user.user_id;
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const user_id = req.user.user_id;
 
-        // Validate task existence
-        const task = await Task.findByPk(id);
-        if (!task) return res.status(404).json({ message: "Task not found" });
+    // Validate task existence
+    const task = await Task.findByPk(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
-        // Validate user existence (optional, since user is authenticated)
-        const userExists = await validateUser(user_id, req.token);
-        if (!userExists) return res.status(400).json({ message: "Invalid user_id" });
+    // Validate user existence (optional, since user is authenticated)
+    const userExists = await validateUser(user_id, req.token);
+    if (!userExists)
+      return res.status(400).json({ message: "Invalid user_id" });
 
-        const comment = await Comment.create({
-            task_id: id,
-            user_id: user_id,
-            content,
-        });
+    const comment = await Comment.create({
+      task_id: id,
+      user_id: user_id,
+      content,
+    });
 
-        res.status(201).json(comment);
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
+    res.status(201).json(comment);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 };

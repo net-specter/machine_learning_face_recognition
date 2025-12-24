@@ -2,155 +2,170 @@ version: '3.8'
 
 services:
   
-  # ==========================================================
-  # 1. AUTH SERVICE DATABASE (MySQL)
-  # ==========================================================
+  # ----------------------------------------------------------
+  # DATABASE SERVICES (Pulling specific credentials from root .env)
+  # ----------------------------------------------------------
   auth-db:
     image: mysql:8.0
     container_name: auth_mysql_db
     restart: always
+    env_file:
+      - ./.env # CRITICAL: Load the root file
     environment:
       MYSQL_ROOT_PASSWORD: root_auth_pass
       MYSQL_DATABASE: auth_database
-      MYSQL_USER: auth_user
-      MYSQL_PASSWORD: c2VjdXJlX2F1dGhfcGFzcw==     # ⬅️ CHANGE ME
+      MYSQL_USER: ${AUTH_CRED_USER}
+      MYSQL_PASSWORD: ${AUTH_CRED_PASS}
     volumes:
       - auth-db-data:/var/lib/mysql
     healthcheck:
-      # NOTE: Healthcheck credentials must match the defined MYSQL_USER/PASSWORD
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "auth_user", "-pc2VjdXJlX2F1dGhfcGFzcw=="]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${AUTH_CRED_USER}", "-p${AUTH_CRED_PASS}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ==========================================================
-  # 2. BOARD SERVICE DATABASE (MySQL)
-  # ==========================================================
   board-db:
     image: mysql:8.0
     container_name: board_mysql_db
     restart: always
+    env_file:
+      - ./.env
     environment:
       MYSQL_ROOT_PASSWORD: root_board_pass
       MYSQL_DATABASE: board_database
-      MYSQL_USER: board_user
-      MYSQL_PASSWORD: c2VjdXJlX2JvYXJkX3Bhc3M=    # ⬅️ CHANGE ME
+      MYSQL_USER: ${BOARD_CRED_USER}
+      MYSQL_PASSWORD: ${BOARD_CRED_PASS}
     volumes:
       - board-db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "board_user", "-pc2VjdXJlX2JvYXJkX3Bhc3M="]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${BOARD_CRED_USER}", "-p${BOARD_CRED_PASS}"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # ==========================================================
-  # 3. TASK SERVICE DATABASE (MySQL)
-  # ==========================================================
+      
   task-db:
     image: mysql:8.0
     container_name: task_mysql_db
     restart: always
+    env_file:
+      - ./.env
     environment:
       MYSQL_ROOT_PASSWORD: root_task_pass
       MYSQL_DATABASE: task_database
-      MYSQL_USER: task_user
-      MYSQL_PASSWORD: c2VjdXJlX3Rhc2tfcGFzcw==     # ⬅️ CHANGE ME
+      MYSQL_USER: ${TASK_CRED_USER}
+      MYSQL_PASSWORD: ${TASK_CRED_PASS}
     volumes:
       - task-db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "task_user", "-pc2VjdXJlX3Rhc2tfcGFzcw=="]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${TASK_CRED_USER}", "-p${TASK_CRED_PASS}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ==========================================================
-  # 4. AUTH SERVICE (Express.js)
-  # ==========================================================
+  # ----------------------------------------------------------
+  # APPLICATION SERVICES (Mapping Specific to Generic App Keys)
+  # ----------------------------------------------------------
   auth-service:
     build:
       context: ./backend/auth-service
       dockerfile: Dockerfile
     container_name: express-auth-service
-    restart: always
+    # restart: always
+    ports:
+      - "${PORT_AUTH_SERVICE_EXTERNAL}:3001"
+    env_file:
+      - ./.env # CRITICAL FIX
     environment:
-      NODE_ENV: development # Explicitly set environment
-      PORT: 8001
-      # Database URI for Sequelize (Recommended way to handle env vars)
-      DATABASE_URL: mysql://auth_user:c2VjdXJlX2F1dGhfcGFzcw==@auth-db:3306/auth_database
-      JWT_SECRET: "your_super_secret_key"
+      NODE_ENV: development
+      PORT: 3001
+      # FIX: MAP specific root vars to generic app keys (DB_USER/DB_PASS)
+      DB_HOST: auth-db            
+      DB_USER: ${AUTH_CRED_USER}
+      DB_PASSWORD: ${AUTH_CRED_PASS}
+      DB_NAME: auth_database
+      DB_DIALECT: mysql
+      
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       auth-db:
         condition: service_healthy
 
-  # ==========================================================
-  # 5. BOARD SERVICE (Express.js)
-  # ==========================================================
   board-service:
     build:
       context: ./backend/board-service
       dockerfile: Dockerfile
     container_name: express-board-service
-    restart: always
+    # restart: always
+    ports:
+      - "${PORT_BOARD_SERVICE_EXTERNAL}:3002"
+    env_file:
+      - ./.env
     environment:
       NODE_ENV: development
-      PORT: 8002
-      # Database URI for Sequelize
-      DATABASE_URL: mysql://board_user:c2VjdXJlX2JvYXJkX3Bhc3M=@board-db:3306/board_database
-      # Internal URL for Auth service dependency (to check permissions)
-      AUTH_SERVICE_URL: http://auth-service:8001
+      PORT: 3002
+      
+      # MAPPING
+      DB_HOST: board-db
+      DB_USER: ${BOARD_CRED_USER}
+      DB_PASSWORD: ${BOARD_CRED_PASS}
+      DB_NAME: board_database
+      DB_DIALECT: mysql
+      
+      AUTH_SERVICE_URL: http://auth-service:3001
     depends_on:
       board-db:
         condition: service_healthy
       auth-service:
         condition: service_started
 
-  # ==========================================================
-  # 6. TASK SERVICE (Express.js) - The Interaction Hub
-  # ==========================================================
   task-service:
     build:
       context: ./backend/task-service
       dockerfile: Dockerfile
     container_name: express-task-service
-    restart: always
-    # Expose host port 3001 to container port 8003
+    # restart: always
     ports:
-      - "3001:8003" 
+      - "${PORT_TASK_SERVICE_PUBLIC}:3003" 
+    env_file:
+      - ./.env # CRITICAL FIX
     environment:
       NODE_ENV: development
-      PORT: 8003
-      # Database URI for Sequelize
-      DATABASE_URL: mysql://task_user:c2VjdXJlX3Rhc2tfcGFzcw==@task-db:3306/task_database
+      PORT: 3003
+      # MAPPING
+      DB_HOST: task-db
+      DB_USER: ${TASK_CRED_USER}
+      DB_PASSWORD: ${TASK_CRED_PASS}
+      DB_NAME: task_database
+      DB_DIALECT: mysql
       
-      # Internal URLs for Service-to-Service Communication
       AUTH_SERVICE_URL: http://auth-service:8001
       BOARD_SERVICE_URL: http://board-service:8002
       
     depends_on:
       task-db:
         condition: service_healthy
-      # Task service depends on both upstream services
       board-service:
         condition: service_started 
-      auth-service: # ⬅️ ADDED: Ensure Auth is ready too
+      auth-service:
         condition: service_started
 
-  # ==========================================================
-  # 7. FRONTEND SERVICE (Next.js)
-  # ==========================================================
+  # ----------------------------------------------------------
+  # FRONTEND SERVICE
+  # ----------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: nextjs-task-tracker
     restart: always
+    env_file:
+      - ./.env # CRITICAL FIX
     environment:
       NODE_ENV: development
       PORT: 3000
-      # CRITICAL: Frontend talks to the exposed host port
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:${PORT_TASK_SERVICE_PUBLIC} 
     ports:
-      - "3000:3000" 
+      - "${PORT_FRONTEND}:3000" 
     depends_on:
       - task-service 
 

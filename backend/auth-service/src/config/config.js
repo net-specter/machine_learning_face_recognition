@@ -1,23 +1,26 @@
 module.exports = {
   development: {
-    username: "root",
-    password: "password",
-    database: "auth-db",
-    host: "127.0.0.1",
-    dialect: "mysql"
+    // These must match the variables supplied by docker-compose
+    username: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    host: process.env.DB_HOST,
+    dialect: "mysql",
   },
   test: {
-    username: "root",
-    password: "password",
-    database: "auth-db",
-    host: "127.0.0.1",
-    dialect: "mysql"
+    // Use separate variables or default to development for tests
+    username: process.env.TEST_DB_USER || process.env.DB_USER,
+    password: process.env.TEST_DB_PASSWORD || process.env.DB_PASSWORD,
+    database: process.env.TEST_DB_NAME || process.env.DB_NAME,
+    host: process.env.TEST_DB_HOST || process.env.DB_HOST,
+    dialect: "mysql",
   },
   production: {
-    username: "root",
-    password: "password",
-    database: "auth-db",
-    host: "127.0.0.1",
-    dialect: "mysql"
-  }
+    // Production will use the host provided by Render
+    username: process.env.PROD_DB_USER,
+    password: process.env.PROD_DB_PASSWORD,
+    database: process.env.PROD_DB_NAME,
+    host: process.env.PROD_DB_HOST,
+    dialect: "mysql",
+  },
 };

@@ -2,7 +2,7 @@ require("dotenv").config();
 const app = require("./app");
 // const { knex } = require("./services/dbService"); // Import Knex if needed for initial check
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT_AUTH_SERVICE || 3001;
 
 function startServer() {
   app.listen(PORT, () => {
