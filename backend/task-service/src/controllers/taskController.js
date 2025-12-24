@@ -100,3 +100,51 @@ exports.assignUser = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// PATCH /tasks/:id/move - Move task to another column (S2S board/column check)
+exports.moveTask = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { column_id, position_order } = req.body;
+
+        const task = await Task.findByPk(id);
+        if (!task) return res.status(404).json({ message: "Task not found" });
+
+        // Optionally: Validate column_id via Board-Service if needed
+
+        task.column_id = column_id;
+        if (position_order !== undefined) task.position_order = position_order;
+        await task.save();
+
+        res.json(task);
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+// POST /tasks/:id/comments - Add a comment to a task
+exports.addComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content } = req.body;
+        const user_id = req.user.user_id;
+
+        // Validate task existence
+        const task = await Task.findByPk(id);
+        if (!task) return res.status(404).json({ message: "Task not found" });
+
+        // Validate user existence (optional, since user is authenticated)
+        const userExists = await validateUser(user_id, req.token);
+        if (!userExists) return res.status(400).json({ message: "Invalid user_id" });
+
+        const comment = await Comment.create({
+            task_id: id,
+            user_id: user_id,
+            content,
+        });
+
+        res.status(201).json(comment);
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
