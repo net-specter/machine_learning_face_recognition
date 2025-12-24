@@ -69,3 +69,17 @@ exports.me = async (req, res) => {
         return res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
+
+// Get user by ID (for S2S validation)
+exports.getUserById = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.user_id, {
+            attributes: ["user_id", "full_name", "email", "phone_number", "created_at", "updated_at"],
+        });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};

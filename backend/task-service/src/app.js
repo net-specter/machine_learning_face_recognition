@@ -11,8 +11,11 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(morgan("dev"));
 
+// route registrations
 const testRoutes = require("./routers/testRoutes");
 app.use("/api/v1", testRoutes);
+const taskRoutes = require("./routers/taskRoutes");
+app.use("/api/v1", taskRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

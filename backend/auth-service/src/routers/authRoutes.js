@@ -14,6 +14,9 @@ router.post("/login", authController.login);
 // Get current user info route (protected)
 router.get("/me", authMiddleware, authController.me);
 
+// Get user by ID
+router.get("/:user_id", authMiddleware, authController.getUserById);
+
 // middleware to verify JWT
 function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
