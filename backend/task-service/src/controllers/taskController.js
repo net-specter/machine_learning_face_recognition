@@ -2,9 +2,9 @@ const { Task, Comment } = require("../models");
 const axios = require("axios");
 
 const BOARD_SERVICE_URL =
-  process.env.BOARD_SERVICE_URL || "http://localhost:3001";
+    process.env.BOARD_SERVICE_URL || "http://board-service:8002";
 const AUTH_SERVICE_URL =
-  process.env.AUTH_SERVICE_URL || "http://localhost:3000";
+  process.env.AUTH_SERVICE_URL || "http://auth-service:8001";
 
 // Helper: Validate board existence via Board-Service
 async function validateBoard(board_id, token) {
