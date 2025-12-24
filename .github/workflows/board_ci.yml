@@ -27,4 +27,4 @@ jobs:
         with:
           context: ./backend/board-service
           push: true
-          tags: kaovichet/board-service:latest
+          tags: vichetkao/board-service:latest

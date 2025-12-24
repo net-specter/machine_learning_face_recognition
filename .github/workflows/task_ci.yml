@@ -67,5 +67,5 @@ jobs:
         with:
           context: ./backend/task-service 
           push: true
-          tags: kaovichet/task-service:latest
-          tags: kaovichet/task-service:${{ github.sha }} # Use commit SHA for unique tag
+          tags: vichetkao/task-service:latest
+          tags: vichetkao/task-service:${{ github.sha }} # Use commit SHA for unique tag

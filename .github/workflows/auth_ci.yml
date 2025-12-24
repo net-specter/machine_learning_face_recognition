@@ -27,4 +27,4 @@ jobs:
         with:
           context: ./backend/auth-service
           push: true
-          tags: kaovichet/auth-service:latest
+          tags: vichetkao/auth-service:latest
