@@ -14,7 +14,7 @@ app.use(morgan("dev"));
 // route registration
 const testRoutes = require("./routers/testRoutes");
 const authRoutes = require("./routers/authRoutes");
-app.use("/api/v1", testRoutes);
+app.use("/api/v2", testRoutes);
 app.use("/api/v1/auth", authRoutes);
 
 app.use((err, req, res, next) => {
