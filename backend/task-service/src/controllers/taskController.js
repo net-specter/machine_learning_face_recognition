@@ -32,3 +32,71 @@ async function validateUser(user_id, token) {
     return false;
   }
 }
+// POST /tasks - Create a new task (S2S board check)
+exports.createTask = async (req, res) => {
+  try {
+    const {
+      board_id,
+      column_id,
+      title,
+      description,
+      assigned_user_id,
+      position_order,
+      due_date,
+      priority,
+    } = req.body;
+    const creator_user_id = req.user.user_id; // Set by auth middleware
+
+    // Validate board existence
+    const boardExists = await validateBoard(board_id, req.token);
+    if (!boardExists)
+      return res.status(400).json({ message: "Invalid board_id" });
+
+    // If assigned_user_id is given, validate user
+    if (assigned_user_id) {
+      const userExists = await validateUser(assigned_user_id, req.token);
+      if (!userExists)
+        return res.status(400).json({ message: "Invalid assigned_user_id" });
+    }
+
+    // Create task
+    const task = await Task.create({
+      board_id,
+      column_id,
+      title,
+      description,
+      assigned_user_id,
+      creator_user_id,
+      position_order,
+      due_date,
+      priority,
+    });
+
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// PATCH /tasks/:id/assign - Assign a user to a task (S2S user check)
+exports.assignUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assigned_user_id } = req.body;
+
+    // Validate user existence
+    const userExists = await validateUser(assigned_user_id, req.token);
+    if (!userExists)
+      return res.status(400).json({ message: "Invalid assigned_user_id" });
+
+    const task = await Task.findByPk(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    task.assigned_user_id = assigned_user_id;
+    await task.save();
+
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
