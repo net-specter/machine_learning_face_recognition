@@ -6,12 +6,12 @@ on:
       - main
     # CRITICAL: Only run when files in the Task Service directory change
     paths:
-      - 'backend/task-service/**' 
+      - "backend/task-service/**"
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    
+
     # 1. Define temporary MySQL service for testing
     services:
       mysql_test:
@@ -32,8 +32,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          
+          node-version: "20"
+
       - name: Wait for MySQL to start
         # Use a more explicit wait that relies on the defined service
         run: |
@@ -41,20 +41,20 @@ jobs:
           while ! nc -z 127.0.0.1 3306; do 
             sleep 1 
           done
-        
+
       # 3. Run Automated Tests (CI Stage)
       - name: Run Jest Tests
         run: |
           cd backend/task-service
           npm install
-          npm test 
+          npm test
         env:
           # Inject variables so tests know how to connect to the temporary MySQL service
           DB_HOST: 127.0.0.1
           DB_USER: root
           DB_PASSWORD: test_pass
           DB_NAME: task_test_db
-          
+
       # 4. Build and Push Docker Image (CD Preparation)
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -65,7 +65,8 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/task-service 
+          context: ./backend/task-service
           push: true
-          tags: vichetkao/task-service:latest
-          tags: vichetkao/task-service:${{ github.sha }} # Use commit SHA for unique tag
+          tags: |
+            vichetkao/task-service:latest
+            vichetkao/task-service:${{ github.sha }}
