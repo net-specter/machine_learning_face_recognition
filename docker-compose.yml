@@ -2,9 +2,6 @@ version: '3.8'
 
 services:
   
-  # ----------------------------------------------------------
-  # DATABASE SERVICES (Pulling specific credentials from root .env)
-  # ----------------------------------------------------------
   auth-db:
     image: mysql:8.0
     container_name: auth_mysql_db
@@ -64,9 +61,6 @@ services:
       retries: 5
 
 
-  # ----------------------------------------------------------
-  # APPLICATION SERVICES (Mapping Specific to Generic App Keys)
-  # ----------------------------------------------------------
   auth-service:
     build:
       context: ./backend/auth-service
@@ -129,7 +123,7 @@ services:
     ports:
       - "${PORT_TASK_SERVICE_PUBLIC}:3003" 
     env_file:
-      - ./.env # CRITICAL FIX
+      - ./.env
     environment:
       NODE_ENV: development
       PORT: 3003
@@ -140,8 +134,8 @@ services:
       DB_NAME: task_database
       DB_DIALECT: mysql
       
-      AUTH_SERVICE_URL: http://auth-service:8001
-      BOARD_SERVICE_URL: http://board-service:8002
+      AUTH_SERVICE_URL: http://auth-service:3001
+      BOARD_SERVICE_URL: http://board-service:3002
       
     depends_on:
       task-db:
@@ -151,9 +145,6 @@ services:
       auth-service:
         condition: service_started
 
-  # ----------------------------------------------------------
-  # FRONTEND SERVICE
-  # ----------------------------------------------------------
   frontend:
     build:
       context: ./frontend
