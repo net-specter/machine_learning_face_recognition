@@ -19,10 +19,11 @@ services:
     volumes:
       - auth-db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${AUTH_CRED_USER}", "-p${AUTH_CRED_PASS}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
+
 
   board-db:
     image: mysql:8.0
@@ -38,7 +39,7 @@ services:
     volumes:
       - board-db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${BOARD_CRED_USER}", "-p${BOARD_CRED_PASS}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,10 +58,11 @@ services:
     volumes:
       - task-db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${TASK_CRED_USER}", "-p${TASK_CRED_PASS}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
+
 
   # ----------------------------------------------------------
   # APPLICATION SERVICES (Mapping Specific to Generic App Keys)
