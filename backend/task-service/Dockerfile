@@ -21,6 +21,6 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 ENV NODE_ENV=production
 
-EXPOSE 8003
+EXPOSE 3003
 
 CMD ["node", "./src/app.js"]

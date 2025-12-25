@@ -25,7 +25,7 @@ RUN npm run build
 FROM node:20 AS runner
 
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Copy only what is needed to run

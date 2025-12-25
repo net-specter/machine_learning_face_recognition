@@ -123,7 +123,7 @@ services:
     ports:
       - "${PORT_TASK_SERVICE_PUBLIC}:3003" 
     env_file:
-      - ./.env
+      - ./.env # CRITICAL FIX
     environment:
       NODE_ENV: development
       PORT: 3003
